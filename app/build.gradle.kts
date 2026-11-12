@@ -16,7 +16,7 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "dev.cluvex.strata.audioconverter"
-    compileSdk { version = release(36) }
+    compileSdk { version = release(37) }
 
     defaultConfig {
         applicationId = "dev.cluvex.strata.audioconverter"
