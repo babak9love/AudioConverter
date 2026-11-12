@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Audio Converter</string>
+    <string name="plugin_description">Convert audio between AAC, MP3, Opus and FLAC</string>
+    <string name="title_convert">Convert Audio</string>
+    <string name="close">Close</string>
+    <string name="reading">Reading the file…</string>
+    <string name="video_dropped">This file has a video stream; only its audio is converted.</string>
+    <string name="info_codec">Codec</string>
+    <string name="info_sample_rate">Sample rate</string>
+    <string name="info_channels">Channels</string>
+    <string name="info_bitrate">Bitrate</string>
+    <string name="info_bit_depth">Bit depth</string>
+    <string name="info_duration">Duration</string>
+    <string name="info_size">Size</string>
+    <string name="label_audio_codec">Audio codec</string>
+    <string name="label_aac_bitrate">AAC bitrate</string>
+    <string name="label_mp3_mode">MP3 mode</string>
+    <string name="label_mp3_bitrate">MP3 bitrate</string>
+    <string name="label_opus_app">Opus application</string>
+    <string name="label_opus_vbr">VBR</string>
+    <string name="label_opus_bitrate">Opus bitrate</string>
+    <string name="label_flac_level">FLAC level</string>
+    <string name="label_flac_depth">Bit depth</string>
+    <string name="label_channels">Channels</string>
+    <string name="label_sample_rate">Sample rate</string>
+    <string name="unit_kbps">kbps</string>
+    <string name="opus_voip">VoIP (speech)</string>
+    <string name="opus_audio">Audio (music)</string>
+    <string name="mono">Mono</string>
+    <string name="stereo">Stereo</string>
+    <string name="input_file">Input File</string>
+    <string name="sr_original">Input file (original)</string>
+    <string name="custom">Custom</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="hint_opus_sr">Sample rate fixed at 48000 Hz for Opus.</string>
+    <string name="hint_hz">Hz (min %1$d)</string>
+    <string name="hint_range">%1$d–%2$d</string>
+    <string name="convert_button">Convert / Encode</string>
+    <string name="converting">Converting… %1$d%%</string>
+    <string name="cancel">Cancel</string>
+</resources>

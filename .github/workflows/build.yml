@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # Uploading through the GitHub website drops the executable bit of scripts.
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Unit tests
+        run: ./gradlew --stacktrace :app:testDebugUnitTest
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.AC_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.AC_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AC_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.AC_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Add the AC_KEYSTORE_BASE64, AC_KEYSTORE_PASSWORD, AC_KEY_ALIAS and AC_KEY_PASSWORD secrets (the same key as the first Audio Converter)."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > release.jks
+          printf 'storeFile=release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > keystore.properties
+
+      - name: Build the signed release APK
+        run: |
+          ./gradlew --stacktrace :app:assembleRelease
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/Audio_Converter.apk"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Audio_Converter
+          path: dist/Audio_Converter.apk
+
+      - name: Attach the APK to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/Audio_Converter.apk

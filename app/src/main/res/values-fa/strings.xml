@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">مبدل صدا</string>
+    <string name="plugin_description">تبدیل صدا بین AAC، MP3، Opus و FLAC</string>
+    <string name="title_convert">تبدیل صدا</string>
+    <string name="close">بستن</string>
+    <string name="reading">در حال خواندن فایل…</string>
+    <string name="video_dropped">این فایل ویدئو هم دارد؛ فقط صدایش تبدیل می‌شود.</string>
+    <string name="info_codec">کدک</string>
+    <string name="info_sample_rate">نرخ نمونه</string>
+    <string name="info_channels">کانال‌ها</string>
+    <string name="info_bitrate">بیت‌ریت</string>
+    <string name="info_bit_depth">عمق بیت</string>
+    <string name="info_duration">مدت</string>
+    <string name="info_size">حجم</string>
+    <string name="label_audio_codec">کدک صدا</string>
+    <string name="label_aac_bitrate">بیت‌ریت AAC</string>
+    <string name="label_mp3_mode">حالت MP3</string>
+    <string name="label_mp3_bitrate">بیت‌ریت MP3</string>
+    <string name="label_opus_app">کاربرد Opus</string>
+    <string name="label_opus_vbr">VBR</string>
+    <string name="label_opus_bitrate">بیت‌ریت Opus</string>
+    <string name="label_flac_level">سطح FLAC</string>
+    <string name="label_flac_depth">عمق بیت</string>
+    <string name="label_channels">کانال‌ها</string>
+    <string name="label_sample_rate">نرخ نمونه</string>
+    <string name="unit_kbps">kbps</string>
+    <string name="opus_voip">VoIP (گفتار)</string>
+    <string name="opus_audio">Audio (موسیقی)</string>
+    <string name="mono">مونو</string>
+    <string name="stereo">استریو</string>
+    <string name="input_file">مثل فایل ورودی</string>
+    <string name="sr_original">مثل فایل ورودی (اصلی)</string>
+    <string name="custom">سفارشی</string>
+    <string name="on">روشن</string>
+    <string name="off">خاموش</string>
+    <string name="hint_opus_sr">نرخ نمونه برای Opus روی ۴۸۰۰۰ هرتز ثابت است.</string>
+    <string name="hint_hz">هرتز (حداقل %1$d)</string>
+    <string name="hint_range">%1$d–%2$d</string>
+    <string name="convert_button">تبدیل / انکود</string>
+    <string name="converting">در حال تبدیل… %1$d%%</string>
+    <string name="cancel">لغو</string>
+</resources>

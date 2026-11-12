@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="false"
+        android:extractNativeLibs="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AudioConverter">
+
+        <!-- Strata's plugin protocol (API 1): it starts this activity with the file as the Intent's content URI. -->
+        <activity
+            android:name=".ConverterActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="dev.cluvex.strata.plugin.action.FILE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <meta-data android:name="dev.cluvex.strata.plugin.API" android:value="1" />
+            <meta-data android:name="dev.cluvex.strata.plugin.DESCRIPTION" android:value="@string/plugin_description" />
+            <meta-data android:name="dev.cluvex.strata.plugin.EXTENSIONS" android:value="wav,mp3,flac,m4a,aac,ogg,oga,opus,wma,aiff,aif,amr,mka,ac3,caf,mp4,mkv,webm,3gp" />
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.results"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>
