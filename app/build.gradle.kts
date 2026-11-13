@@ -23,8 +23,8 @@ android {
         minSdk = 24
         targetSdk = 36
         // Must be higher than the installed 1.0.0 build so it updates in place; raise it if Android refuses.
-        versionCode = 10
-        versionName = "1.1.0"
+        versionCode = 11
+        versionName = "1.2.0"
         // Only arm64-v8a is published as a prebuilt library.
         ndk { abiFilters += "arm64-v8a" }
     }

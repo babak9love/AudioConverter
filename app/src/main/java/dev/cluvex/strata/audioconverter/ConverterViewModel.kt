@@ -1,10 +1,11 @@
 package dev.cluvex.strata.audioconverter
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +30,25 @@ class ConverterViewModel(app: Application) : AndroidViewModel(app) {
 
     private var input: File? = null
     private var started = false
-    private var job: Job? = null
+    private var myRun = -1L
+
+    init {
+        // The conversion runs in ConversionService; this follows the run that this screen started.
+        viewModelScope.launch {
+            ConversionHub.state.collect { s ->
+                if (s.run != myRun) return@collect
+                _ui.update {
+                    when (s) {
+                        is ConversionHub.State.Running -> it.copy(converting = true, progress = s.progress, error = null)
+                        is ConversionHub.State.Done -> it.copy(converting = false, progress = 1f, result = s.result)
+                        is ConversionHub.State.Failed -> it.copy(converting = false, error = s.message)
+                        is ConversionHub.State.Cancelled -> it.copy(converting = false)
+                        ConversionHub.State.Idle -> it
+                    }
+                }
+            }
+        }
+    }
 
     fun start(uri: Uri, fileName: String) {
         if (started) return
@@ -56,24 +75,27 @@ class ConverterViewModel(app: Application) : AndroidViewModel(app) {
     fun convert() {
         val file = input ?: return
         val state = _ui.value
-        if (state.converting || state.info == null) return
+        val info = state.info ?: return
+        if (state.converting) return
+        val app = getApplication<Application>()
+        if (ConversionHub.isBusy) {
+            _ui.update { it.copy(error = app.getString(R.string.busy)) }
+            return
+        }
+        // A new conversion replaces whatever result an earlier one left in the notification.
+        Notifications.cancelAll(app)
+        val run = ConversionHub.nextRun()
+        myRun = run
+        ConversionHub.begin(run, ConversionHub.Request(file, state.fileName, info, state.options))
         _ui.update { it.copy(converting = true, progress = 0f, error = null) }
-        job = viewModelScope.launch {
-            try {
-                when (val r = Engine.convert(getApplication(), file, state.fileName, state.info, state.options) { p -> _ui.update { it.copy(progress = p) } }) {
-                    is ConvertResult.Done -> _ui.update { it.copy(converting = false, result = r) }
-                    is ConvertResult.Failed -> _ui.update { it.copy(converting = false, error = r.message) }
-                }
-            } catch (t: Throwable) {
-                _ui.update { it.copy(converting = false, error = if (Engine.isCancel(t)) null else t.message ?: "Encoding failed.") }
-                if (Engine.isCancel(t)) throw t
-            }
+        try {
+            ContextCompat.startForegroundService(app, Intent(app, ConversionService::class.java))
+        } catch (t: Throwable) {
+            ConversionHub.finish(ConversionHub.State.Failed(run, t.message ?: "Encoding failed."))
         }
     }
 
-    fun cancel() {
-        job?.cancel()
-    }
+    fun cancel() = ConversionHub.cancel()
 
     fun resultConsumed() = _ui.update { it.copy(result = null) }
 }

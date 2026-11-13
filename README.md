@@ -8,6 +8,12 @@ FLAC level 0-8 and 16/24-bit; channels Mono / Stereo / Input; sample-rate menus 
 (AAC/MP3: 44100, 48000, input; FLAC: 44100, 48000, 96000, 192000, custom). Video streams are dropped (`-vn`).
 The result is returned to Strata as `<name>_encoded.<ext>` with a Settings / Output report as the MESSAGE.
 
+## Background conversion
+The encoder runs in `ConversionService` (foreground service), not in the screen. Home or Back while converting only hides the
+screen (it keeps waiting for Strata); the notification shows progress with a Cancel button and comes back if swiped away.
+When it finishes in the background the notification stays (ongoing) until Open is tapped: that brings Strata forward, the
+screen hands the file over, and Strata offers to save it. If the screen was killed meanwhile, Open opens the file in Strata directly.
+
 ## Build
 1. FFmpegKit is fetched from Maven Central (`dev.ffmpegkit-maintained:ffmpeg-kit-audio:6.0.3`, arm64-v8a only); no AAR needed.
 2. For the same signature as the first version, create `keystore.properties` next to `settings.gradle.kts`:

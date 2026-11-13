@@ -47,9 +47,12 @@
     <string name="keep_meta_tags">تگ‌ها (نام، خواننده، آلبوم…) در فایل پیدا شد</string>
     <string name="keep_meta_opus">Opus کاور را نگه نمی‌دارد؛ تگ‌ها حفظ می‌شوند</string>
     <string name="keep_meta_opus_cover_only">Opus کاور را نگه نمی‌دارد</string>
-    <string name="label_mp3_quality">کیفیت MP3</string>
-    <string name="label_mp3_avg_bitrate">میانگین بیت‌ریت MP3</string>
-    <string name="mp3_quality_hint">عدد کمتر یعنی کیفیت بالاتر. بیت‌ریت با موسیقی تغییر می‌کند و حجم فایل هم همین‌طور.</string>
-    <string name="mp3_quality_note">V%1$d · حدود %2$d kbps (%3$d تا %4$d)</string>
-    <string name="mp3_abr_note">میانگین %1$d kbps، بین %2$d و %3$d kbps تغییر می‌کند</string>
+    <string name="busy">تبدیل دیگری هنوز در حال انجام است.</string>
+    <string name="result_missing">فایل تبدیل‌شده دیگر در دسترس نیست.</string>
+    <string name="notif_channel_progress">پیشرفت تبدیل</string>
+    <string name="notif_channel_done">پایان تبدیل</string>
+    <string name="notif_done_title">تبدیل تمام شد</string>
+    <string name="notif_done_text">%1$s آماده است. برای ذخیره در استراتا «باز کردن» را بزنید.</string>
+    <string name="notif_failed_title">تبدیل ناموفق بود</string>
+    <string name="notif_open">باز کردن</string>
 </resources>

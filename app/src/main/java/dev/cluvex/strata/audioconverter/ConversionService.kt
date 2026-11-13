@@ -1,0 +1,116 @@
+package dev.cluvex.strata.audioconverter
+
+import android.app.Notification
+import android.app.Service
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
+import android.os.IBinder
+import android.os.SystemClock
+import androidx.core.app.ServiceCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+
+/** Runs the ffmpeg conversion as a foreground service, so it goes on after Home or Back and shows a notification. */
+class ConversionService : Service() {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var job: Job? = null
+
+    private val lock = Any()
+    private var active = false
+    private var lastPercent = -1
+    private var lastNotifyAt = 0L
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (job?.isActive == true) return START_NOT_STICKY
+        Notifications.ensureChannels(this)
+        val taken = ConversionHub.takeRequest()
+        // startForegroundService() obliges us to call startForeground(), even if there turns out to be nothing to do.
+        startInForeground(Notifications.progress(this, taken?.second?.fileName.orEmpty(), 0f))
+        if (taken == null) {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        val (run, request) = taken
+        synchronized(lock) { active = true }
+        job = scope.launch {
+            var outcome: ConvertResult? = null
+            try {
+                if (!ConversionHub.cancelRequested) {
+                    outcome = Engine.convert(applicationContext, request.input, request.fileName, request.info, request.options) { p ->
+                        onProgress(run, request.fileName, p)
+                    }
+                }
+            } catch (t: Throwable) {
+                // A cancellation leaves the outcome empty; anything else is a failure.
+                if (!Engine.isCancel(t)) outcome = ConvertResult.Failed(t.message ?: "Encoding failed.")
+            } finally {
+                finish(run, outcome, startId)
+            }
+        }
+        ConversionHub.cancelHook = { job?.cancel() }
+        if (ConversionHub.cancelRequested) job?.cancel()
+        return START_NOT_STICKY
+    }
+
+    private fun startInForeground(n: Notification) {
+        val type = when {
+            Build.VERSION.SDK_INT >= 35 -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
+            Build.VERSION.SDK_INT >= 29 -> ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            else -> 0
+        }
+        ServiceCompat.startForeground(this, Notifications.PROGRESS_ID, n, type)
+    }
+
+    private fun onProgress(run: Long, name: String, p: Float) {
+        ConversionHub.progress(run, p)
+        val pct = (p * 100).toInt()
+        val now = SystemClock.elapsedRealtime()
+        // Under the lock so that a late callback can never post the notification again after finish() removed it.
+        synchronized(lock) {
+            if (!active || pct == lastPercent || now - lastNotifyAt < 400) return
+            lastPercent = pct
+            lastNotifyAt = now
+            Notifications.notifyProgress(this, name, p)
+        }
+    }
+
+    private fun finish(run: Long, outcome: ConvertResult?, startId: Int) {
+        synchronized(lock) { active = false }
+        ConversionHub.cancelHook = null
+        ConversionHub.finish(
+            when (outcome) {
+                is ConvertResult.Done -> ConversionHub.State.Done(run, outcome)
+                is ConvertResult.Failed -> ConversionHub.State.Failed(run, outcome.message)
+                null -> ConversionHub.State.Cancelled(run)
+            },
+        )
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        // With the screen on display it hands the result over itself; otherwise the notification carries it.
+        if (!ConversionHub.visible && !ConversionHub.consumed) {
+            when (outcome) {
+                is ConvertResult.Done -> Notifications.postDone(this, outcome.name)
+                is ConvertResult.Failed -> Notifications.postFailed(this, outcome.message)
+                null -> Unit
+            }
+        }
+        stopSelf(startId)
+    }
+
+    /** Android 15 stops long-running foreground services of these types after a few hours. */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        ConversionHub.cancel()
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+}

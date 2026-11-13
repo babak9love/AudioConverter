@@ -46,15 +46,24 @@ object Engine {
 
     private fun workDir(context: Context, name: String) = File(context.cacheDir, name).apply { mkdirs() }
 
-    /** Results and input copies from earlier runs are removed when a new file arrives. */
+    /**
+     * Input copies from earlier runs are removed when a new file arrives, unless a conversion is still reading one.
+     * Results stay: a finished one may still be waiting behind its notification (see [convert] for when they go).
+     */
     fun cleanUp(context: Context) {
-        listOf("results", "input").forEach { File(context.cacheDir, it).deleteRecursively() }
+        if (!ConversionHub.isBusy) File(context.cacheDir, "input").deleteRecursively()
     }
+
+    /** The newest converted file still in the cache. */
+    fun latestResult(context: Context): File? =
+        File(context.cacheDir, "results").listFiles()?.filter { it.isFile }?.maxByOrNull { it.lastModified() }
 
     /** Copies the shared content URI into the cache: ffmpeg needs a real path. */
     suspend fun stageInput(context: Context, uri: Uri, fileName: String): File = withContext(Dispatchers.IO) {
         val ext = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }.take(8)
-        val target = File(workDir(context, "input"), if (ext.isEmpty()) "input" else "input.$ext")
+        // One folder per file: a conversion that is still running keeps reading its own copy.
+        val dir = File(workDir(context, "input"), java.util.UUID.randomUUID().toString().take(8)).apply { mkdirs() }
+        val target = File(dir, if (ext.isEmpty()) "input" else "input.$ext")
         context.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
             ?: throw java.io.IOException("Could not open the shared file.")
         target
@@ -110,6 +119,8 @@ object Engine {
         if (duration <= 0.0) return@withContext ConvertResult.Failed("Could not detect media duration.")
 
         val outName = EncoderSettings.outputName(originalName, settings.codec)
+        // A new conversion replaces the previous result.
+        File(context.cacheDir, "results").deleteRecursively()
         val outFile = File(workDir(context, "results"), outName).also { it.delete() }
         val command = EncoderSettings.command(input.absolutePath, outFile.absolutePath, settings).toTypedArray()
 
@@ -141,7 +152,7 @@ object Engine {
         row("Format", fileName.substringAfterLast('.').uppercase(Locale.ROOT))
         row("Audio Codec", s.codec.label)
         if (s.bitrate != null) row("Audio Bitrate", "${s.bitrate} kbps")
-        if (s.codec == AudioCodec.MP3 && s.mp3Mode != null) row("MP3 Mode", if (s.vbrQuality != null) "VBR (V${s.vbrQuality})" else s.mp3Mode.name)
+        if (s.codec == AudioCodec.MP3 && s.mp3Mode != null) row("MP3 Mode", s.mp3Mode.name)
         if (s.codec == AudioCodec.FLAC) {
             row("FLAC Level", "${s.flacLevel}")
             s.flacDepth?.let { row("Bit Depth", "$it-bit") }
