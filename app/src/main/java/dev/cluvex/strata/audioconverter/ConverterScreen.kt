@@ -89,7 +89,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-// Dark navy UI with a luminous purple gradient across selected controls, borders and main button.
+// Premium dark UI with a luminous purple, silver and gold gradient across all selected controls and borders.
 private val Bg = Color(0xFF0A0E14)
 private val BgTop = Color(0xFF0D1219)
 private val Panel = Color(0xFF12181F)
@@ -97,12 +97,14 @@ private val Raised = Color(0xFF171F28)
 private val Border = Color(0xFF212B36)
 private val TextMain = Color(0xFFE8EDF2)
 private val TextDim = Color(0xFF7C8A99)
-private val Accent = Color(0xFFB84DFF)
+private val Accent = Color(0xFFC45BFF)
+private val Silver = Color(0xFFE8EAF2)
+private val Gold = Color(0xFFFFD36A)
 private val Danger = Color(0xFFF76A6A)
 private val OnRainbow = Color(0xFFFFFFFF)
 private val Rainbow = listOf(
-    Color(0xFFE879FF), Color(0xFFB84DFF), Color(0xFF8B2CFF), Color(0xFF6200EA),
-    Color(0xFF9D4DFF), Color(0xFFD66BFF), Color(0xFFE879FF),
+    Color(0xFF6500D8), Color(0xFF9D35FF), Color(0xFFD9B8FF), Color(0xFFF2F3FA),
+    Color(0xFFFFD36A), Color(0xFFB879FF), Color(0xFF6500D8),
 )
 private val RainbowLoop = Rainbow + Rainbow.first()
 
@@ -328,8 +330,8 @@ private fun CodecOptions(codec: AudioCodec, o: EncoderOptions, enabled: Boolean,
                         steps = 7,
                         enabled = enabled,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFFFE45E), activeTrackColor = Color(0xFFFFA836), inactiveTrackColor = Raised,
-                            activeTickColor = OnRainbow, inactiveTickColor = Border,
+                            thumbColor = Gold, activeTrackColor = Accent, inactiveTrackColor = Raised,
+                            activeTickColor = Silver, inactiveTickColor = Border,
                         ),
                         modifier = Modifier.weight(1f),
                     )
