@@ -46,6 +46,8 @@ data class EncoderOptions(
     val channels: ChannelMode = ChannelMode.ORIGINAL,
     val sampleRate: SampleRateChoice = SampleRateChoice.ORIGINAL,
     val customSampleRate: Int = 48000,
+    /** Keep the cover art and the tags (title, artist, album…) of the source; off strips both. Only offered when the source has any. */
+    val keepMetadata: Boolean = true,
 ) {
     /** Switching codec keeps the previous sample rate when the new menu has it, otherwise the menu's default. */
     fun withCodec(next: AudioCodec): EncoderOptions {
@@ -66,7 +68,18 @@ data class ResolvedSettings(
     val flacDepth: Int?,
     val channelCount: Int?,
     val sampleRate: Int?,
+    val metaMode: MetaMode = MetaMode.DEFAULT,
+    /** Stream index of the cover art that is carried over, null when it is dropped. */
+    val coverStream: Int? = null,
+    val coverCodec: String? = null,
 )
+
+enum class MetaMode { DEFAULT, KEEP, STRIP }
+
+/** What the source file carries besides the sound. */
+data class SourceMeta(val hasTags: Boolean = false, val coverStream: Int? = null, val coverCodec: String? = null) {
+    val any get() = hasTags || coverStream != null
+}
 
 object EncoderSettings {
     val AAC_BITRATES = listOf(128, 192, 256)
@@ -115,7 +128,7 @@ object EncoderSettings {
         else -> 8
     }
 
-    fun resolve(options: EncoderOptions, inputSampleRate: Int?): ResolvedSettings {
+    fun resolve(options: EncoderOptions, inputSampleRate: Int?, source: SourceMeta = SourceMeta()): ResolvedSettings {
         val codec = options.codec
         val bitrate = when (codec) {
             AudioCodec.AAC -> options.aacBitrate.coerceIn(AAC_RANGE)
@@ -143,6 +156,15 @@ object EncoderSettings {
                 ChannelMode.ORIGINAL -> null
             },
             sampleRate = sampleRate,
+            // Nothing to keep or strip when the source has no cover or tags: leave ffmpeg's defaults alone.
+            metaMode = when {
+                !source.any -> MetaMode.DEFAULT
+                options.keepMetadata -> MetaMode.KEEP
+                else -> MetaMode.STRIP
+            },
+            // Opus (Ogg) cannot carry a cover picture in this ffmpeg, the other formats can.
+            coverStream = source.coverStream.takeIf { options.keepMetadata && codec != AudioCodec.OPUS },
+            coverCodec = source.coverCodec,
         )
     }
 
@@ -168,9 +190,30 @@ object EncoderSettings {
         return out
     }
 
-    /** ["-y", "-i", input, "-vn", ...audio args, output]: audio only, video streams are dropped. */
-    fun command(input: String, output: String, s: ResolvedSettings): List<String> =
-        listOf("-y", "-i", input, "-vn") + audioArgs(s) + output
+    /**
+     * ["-y", "-i", input, "-vn", ...audio args, output]: audio only, video streams are dropped.
+     * With a cover to keep, the first audio stream and the cover picture are mapped and the picture is copied
+     * (re-encoded to JPEG when it is not already JPEG or PNG) and marked as attached picture.
+     */
+    fun command(input: String, output: String, s: ResolvedSettings): List<String> {
+        val args = mutableListOf("-y", "-i", input)
+        val cover = s.coverStream
+        if (cover != null) {
+            args += listOf("-map", "0:a:0", "-map", "0:$cover")
+            args += listOf("-c:v", if (s.coverCodec == "mjpeg" || s.coverCodec == "png") "copy" else "mjpeg", "-disposition:v:0", "attached_pic")
+            if (s.codec == AudioCodec.MP3) {
+                args += listOf("-id3v2_version", "3", "-metadata:s:v", "title=Album cover", "-metadata:s:v", "comment=Cover (front)")
+            }
+        } else {
+            args += "-vn"
+        }
+        when (s.metaMode) {
+            MetaMode.KEEP -> args += listOf("-map_metadata", "0")
+            MetaMode.STRIP -> args += listOf("-map_metadata", "-1")
+            MetaMode.DEFAULT -> Unit
+        }
+        return args + audioArgs(s) + output
+    }
 
     /** "<name>_encoded" with the same file-name cleaning as the web tool. */
     fun outputBaseName(original: String): String {

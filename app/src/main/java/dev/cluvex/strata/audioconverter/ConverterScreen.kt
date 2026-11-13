@@ -34,10 +34,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,6 +78,7 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.inset
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -83,6 +86,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -206,7 +210,11 @@ fun ConverterScreen(vm: ConverterViewModel, onDone: (ConvertResult.Done) -> Unit
                 ui.error?.let { Text(it, color = Danger) }
                 if (ui.info != null) {
                     Options(ui.options, enabled = !ui.converting, pan = slow, change = vm::update)
-                    Appear(5) {
+                    // Only offered when the file really has a cover or tags to keep.
+                    if (ui.info.coverStream != null || ui.info.hasTags) {
+                        Appear(5) { KeepMetadataRow(ui.info, ui.options, !ui.converting, slow, vm::update) }
+                    }
+                    Appear(6) {
                         if (ui.converting) Progress(ui.progress, fast, vm::cancel) else ConvertButton(fast, vm::convert)
                     }
                 }
@@ -434,6 +442,51 @@ private fun NumberField(value: Int, hint: String, enabled: Boolean, onChange: (I
         ),
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+@Composable
+private fun KeepMetadataRow(info: AudioInfo, o: EncoderOptions, enabled: Boolean, pan: State<Float>, change: ((EncoderOptions) -> EncoderOptions) -> Unit) {
+    val hasCover = info.coverStream != null
+    val opus = o.codec == AudioCodec.OPUS
+    val note = when {
+        hasCover && opus && info.hasTags -> R.string.keep_meta_opus
+        hasCover && opus -> R.string.keep_meta_opus_cover_only
+        hasCover && info.hasTags -> R.string.keep_meta_both
+        hasCover -> R.string.keep_meta_cover
+        else -> R.string.keep_meta_tags
+    }
+    Toggle(stringResource(R.string.keep_meta_title), stringResource(note), o.keepMetadata, enabled, pan) { v -> change { it.copy(keepMetadata = v) } }
+}
+
+/** A switch row in the same style: the track fills with the panning gradient, the thumb slides and changes colour. */
+@Composable
+private fun Toggle(title: String, subtitle: String, checked: Boolean, enabled: Boolean, pan: State<Float>, onChange: (Boolean) -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    val on by animateFloatAsState(if (checked) 1f else 0f, tween(260), label = "toggle")
+    Row(
+        Modifier.fillMaxWidth().clip(shape).background(Raised).border(1.dp, Border, shape).alpha(if (enabled) 1f else 0.55f)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = TextDim, fontSize = 13.sp)
+        }
+        Box(
+            Modifier.size(width = 56.dp, height = 32.dp).clip(CircleShape).background(Bg).border(1.dp, Border, CircleShape).rainbowFill(pan, CircleShape) { on },
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Box(
+                Modifier
+                    .offset { IntOffset(((4f + 24f * on) * density).roundToInt(), 0) }
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(lerp(TextDim, Silver, on)),
+            )
+        }
+    }
 }
 
 /** The big purple-gradient button: the colours keep panning, a press squashes it. */

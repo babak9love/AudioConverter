@@ -71,4 +71,34 @@ class EncoderSettingsTest {
     @Test fun commandDropsVideo() =
         assertEquals(listOf("-y", "-i", "in.mp4", "-vn", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "out.m4a"),
             EncoderSettings.command("in.mp4", "out.m4a", EncoderSettings.resolve(EncoderOptions(), 44100)))
+
+    private fun cmd(o: EncoderOptions, meta: SourceMeta) = EncoderSettings.command("in", "out", EncoderSettings.resolve(o, 44100, meta))
+
+    @Test fun keepCoverAndTagsMp3() = assertEquals(
+        listOf("-y", "-i", "in", "-map", "0:a:0", "-map", "0:1", "-c:v", "copy", "-disposition:v:0", "attached_pic",
+            "-id3v2_version", "3", "-metadata:s:v", "title=Album cover", "-metadata:s:v", "comment=Cover (front)", "-map_metadata", "0",
+            "-c:a", "libmp3lame", "-b:a", "192k", "-minrate", "192k", "-maxrate", "192k", "-bufsize", "384k", "-abr", "0", "-ar", "44100", "out"),
+        cmd(EncoderOptions(codec = AudioCodec.MP3), SourceMeta(hasTags = true, coverStream = 1, coverCodec = "mjpeg")),
+    )
+
+    @Test fun keepCoverReencodesOddPictures() {
+        val c = cmd(EncoderOptions(codec = AudioCodec.FLAC), SourceMeta(coverStream = 2, coverCodec = "bmp"))
+        assertTrue(c.containsAll(listOf("-map", "0:2", "-c:v", "mjpeg", "attached_pic")))
+    }
+
+    @Test fun opusKeepsTagsButNoCover() {
+        val c = cmd(EncoderOptions(codec = AudioCodec.OPUS), SourceMeta(hasTags = true, coverStream = 1, coverCodec = "mjpeg"))
+        assertTrue("-vn" in c)
+        assertTrue("-map_metadata" in c && "0" == c[c.indexOf("-map_metadata") + 1])
+        assertTrue("attached_pic" !in c)
+    }
+
+    @Test fun stripRemovesEverything() {
+        val c = cmd(EncoderOptions(keepMetadata = false), SourceMeta(hasTags = true, coverStream = 1, coverCodec = "mjpeg"))
+        assertEquals(listOf("-y", "-i", "in", "-vn", "-map_metadata", "-1"), c.take(6))
+        assertTrue("attached_pic" !in c)
+    }
+
+    @Test fun nothingToKeepLeavesDefaults() =
+        assertEquals(listOf("-y", "-i", "in", "-vn", "-c:a", "aac"), cmd(EncoderOptions(), SourceMeta()).take(6))
 }

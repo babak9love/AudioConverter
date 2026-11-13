@@ -41,4 +41,10 @@
     <string name="convert_button">تبدیل / انکود</string>
     <string name="converting">در حال تبدیل… %1$d%%</string>
     <string name="cancel">لغو</string>
+    <string name="keep_meta_title">حفظ کاور و متادیتا</string>
+    <string name="keep_meta_both">کاور و تگ‌ها (نام، خواننده، آلبوم…) در فایل پیدا شد</string>
+    <string name="keep_meta_cover">کاور در فایل پیدا شد</string>
+    <string name="keep_meta_tags">تگ‌ها (نام، خواننده، آلبوم…) در فایل پیدا شد</string>
+    <string name="keep_meta_opus">Opus کاور را نگه نمی‌دارد؛ تگ‌ها حفظ می‌شوند</string>
+    <string name="keep_meta_opus_cover_only">Opus کاور را نگه نمی‌دارد</string>
 </resources>

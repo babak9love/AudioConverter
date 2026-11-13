@@ -27,7 +27,12 @@ data class AudioInfo(
     val duration: Double,
     val hasVideo: Boolean,
     val sizeBytes: Long,
-)
+    val hasTags: Boolean = false,
+    val coverStream: Int? = null,
+    val coverCodec: String? = null,
+) {
+    val source get() = SourceMeta(hasTags, coverStream, coverCodec)
+}
 
 sealed interface ConvertResult {
     data class Done(val uri: Uri, val name: String, val report: String) : ConvertResult
@@ -59,6 +64,7 @@ object Engine {
         val info = FFprobeKit.getMediaInformation(path).mediaInformation ?: return@withContext null
         val streams = info.streams.orEmpty()
         val audio = streams.firstOrNull { it.type == "audio" }
+        val cover = streams.firstOrNull { it.type == "video" && it.allProperties?.optJSONObject("disposition")?.optInt("attached_pic", 0) == 1 }
         val props: JSONObject? = audio?.allProperties
         fun kbps(raw: String?): Int? = raw?.toDoubleOrNull()?.let { (if (it > 1000) it / 1000.0 else it).toInt() }?.takeIf { it > 0 }
         val containerKbps = kbps(info.bitrate)
@@ -76,7 +82,18 @@ object Engine {
             duration = info.duration?.toDoubleOrNull() ?: 0.0,
             hasVideo = streams.any { it.type == "video" && it.allProperties?.optJSONObject("disposition")?.optInt("attached_pic", 0) != 1 },
             sizeBytes = File(path).length(),
+            hasTags = hasTags(info.tags) || hasTags(props?.optJSONObject("tags")),
+            coverStream = cover?.index?.toInt(),
+            coverCodec = cover?.codec,
         )
+    }
+
+    // Tags that describe the container rather than the music do not count as metadata worth keeping.
+    private val TECHNICAL_TAGS = setOf("encoder", "major_brand", "minor_version", "compatible_brands", "creation_time", "handler_name", "vendor_id", "language", "duration")
+
+    private fun hasTags(tags: JSONObject?): Boolean {
+        tags ?: return false
+        return tags.keys().asSequence().any { key -> key.lowercase(Locale.ROOT) !in TECHNICAL_TAGS && tags.optString(key).isNotBlank() }
     }
 
     /** Runs the conversion; [onProgress] gets 0f..1f. Cancelling the coroutine cancels ffmpeg. */
@@ -88,7 +105,7 @@ object Engine {
         options: EncoderOptions,
         onProgress: (Float) -> Unit,
     ): ConvertResult = withContext(Dispatchers.IO) {
-        val settings = EncoderSettings.resolve(options, inputInfo?.sampleRate)
+        val settings = EncoderSettings.resolve(options, inputInfo?.sampleRate, inputInfo?.source ?: SourceMeta())
         val duration = inputInfo?.duration ?: 0.0
         if (duration <= 0.0) return@withContext ConvertResult.Failed("Could not detect media duration.")
 
@@ -131,6 +148,11 @@ object Engine {
         }
         row("Channels", when (s.channelCount) { 1 -> "Mono"; 2 -> "Stereo"; else -> "Input File" })
         s.sampleRate?.let { row("Sample Rate", "$it Hz") }
+        when (s.metaMode) {
+            MetaMode.KEEP -> row("Metadata", if (s.coverStream != null) "Kept (with cover art)" else "Kept")
+            MetaMode.STRIP -> row("Metadata", "Removed")
+            MetaMode.DEFAULT -> Unit
+        }
 
         lines += ""
         lines += "Output"

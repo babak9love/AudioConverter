@@ -41,4 +41,10 @@
     <string name="convert_button">Convert / Encode</string>
     <string name="converting">Converting… %1$d%%</string>
     <string name="cancel">Cancel</string>
+    <string name="keep_meta_title">Keep cover and metadata</string>
+    <string name="keep_meta_both">Cover art and tags found in this file</string>
+    <string name="keep_meta_cover">Cover art found in this file</string>
+    <string name="keep_meta_tags">Tags (title, artist, album…) found in this file</string>
+    <string name="keep_meta_opus">Opus can\'t store cover art; tags are kept</string>
+    <string name="keep_meta_opus_cover_only">Opus can\'t store cover art</string>
 </resources>
