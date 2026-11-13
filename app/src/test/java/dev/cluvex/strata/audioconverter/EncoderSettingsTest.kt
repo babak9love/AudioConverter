@@ -63,9 +63,9 @@ class EncoderSettingsTest {
     }
 
     @Test fun outputNames() {
-        assertEquals("song_encoded.m4a", EncoderSettings.outputName("song.wav", AudioCodec.AAC))
-        assertEquals("a_b_encoded.mp3", EncoderSettings.outputName("a/b.flac", AudioCodec.MP3))
-        assertEquals("media_encoded.opus", EncoderSettings.outputName("..flac", AudioCodec.OPUS))
+        assertEquals("song_converted.m4a", EncoderSettings.outputName("song.wav", AudioCodec.AAC))
+        assertEquals("a_b_converted.mp3", EncoderSettings.outputName("a/b.flac", AudioCodec.MP3))
+        assertEquals("media_converted.opus", EncoderSettings.outputName("..flac", AudioCodec.OPUS))
     }
 
     @Test fun commandDropsVideo() =

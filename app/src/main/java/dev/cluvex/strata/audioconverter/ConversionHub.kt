@@ -1,6 +1,9 @@
 package dev.cluvex.strata.audioconverter
 
 import android.app.Activity
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +27,7 @@ object ConversionHub {
         data object Idle : State { override val run = 0L }
         data class Running(override val run: Long, val fileName: String, val progress: Float) : State
         data class Done(override val run: Long, val result: ConvertResult.Done) : State
+        data class Saved(override val run: Long, val uri: Uri, val name: String) : State
         data class Failed(override val run: Long, val message: String) : State
         data class Cancelled(override val run: Long) : State
     }
@@ -90,6 +94,15 @@ object ConversionHub {
 
     fun detach(activity: Activity) {
         if (host?.get() === activity) host = null
+    }
+
+    /**
+     * Closes the hidden screen without a result once the file was saved on its own: Strata stops waiting for the plugin
+     * (its "working" dialog goes away) and nothing is handed over twice.
+     */
+    fun releaseHost() {
+        val a = host?.get() ?: return
+        Handler(Looper.getMainLooper()).post { if (!a.isFinishing) a.finish() }
     }
 
     /** True while the activity that Strata is waiting on can still hand the result back. */

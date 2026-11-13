@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 
@@ -86,6 +87,31 @@ object Notifications {
             .setContentIntent(open(ctx, true))
             .setDeleteIntent(broadcast(ctx, ACTION_REPOST_DONE, 21))
             .addAction(0, ctx.getString(R.string.notif_open), open(ctx, true))
+            .build()
+        manager(ctx).notify(DONE_ID, n)
+    }
+
+    /** The file is already saved in Music/AudioConverter; Open shows it. Stays until Open, like the other finished notification. */
+    fun postSaved(ctx: Context, name: String, uri: Uri) {
+        ensureChannels(ctx)
+        val open = PendingIntent.getActivity(
+            ctx, 12,
+            Intent(ctx, OpenResultActivity::class.java).setData(uri).putExtra(OpenResultActivity.EXTRA_SAVED, true),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val text = ctx.getString(R.string.notif_saved_text, name)
+        val n = NotificationCompat.Builder(ctx, CH_DONE)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(ctx.getString(R.string.notif_done_title))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setOngoing(true)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(open)
+            .setDeleteIntent(broadcast(ctx, ACTION_REPOST_DONE, 21))
+            .addAction(0, ctx.getString(R.string.notif_open), open)
             .build()
         manager(ctx).notify(DONE_ID, n)
     }

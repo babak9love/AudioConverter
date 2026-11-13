@@ -215,12 +215,12 @@ object EncoderSettings {
         return args + audioArgs(s) + output
     }
 
-    /** "<name>_encoded" with the same file-name cleaning as the web tool. */
+    /** "<name>_converted" with the same file-name cleaning as the web tool. */
     fun outputBaseName(original: String): String {
         val stem = original.substringBeforeLast('.', original)
         val safe = stem.map { if (it.isLetterOrDigit() || it == ' ' || it == '-' || it == '_' || it == '.') it else '_' }
             .joinToString("").trim(' ', '.', '_').take(50).ifEmpty { "media" }
-        return "${safe}_encoded"
+        return "${safe}_converted"
     }
 
     fun outputName(original: String, codec: AudioCodec) = outputBaseName(original) + codec.extension

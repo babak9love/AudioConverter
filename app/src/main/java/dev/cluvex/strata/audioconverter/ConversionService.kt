@@ -14,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.io.File
 
 /** Runs the ffmpeg conversion as a foreground service, so it goes on after Home or Back and shows a notification. */
 class ConversionService : Service() {
@@ -87,18 +88,31 @@ class ConversionService : Service() {
     private fun finish(run: Long, outcome: ConvertResult?, startId: Int) {
         synchronized(lock) { active = false }
         ConversionHub.cancelHook = null
+        // With the screen on display it hands the result to Strata itself. Otherwise the file is saved in
+        // Music/AudioConverter right away; if that fails the result waits behind the notification as before.
+        val saved = if (outcome is ConvertResult.Done && !ConversionHub.visible && !ConversionHub.consumed) {
+            runCatching { ResultStore.saveToMusic(applicationContext, File(File(cacheDir, "results"), outcome.name)) }.getOrNull()
+        } else {
+            null
+        }
         ConversionHub.finish(
-            when (outcome) {
-                is ConvertResult.Done -> ConversionHub.State.Done(run, outcome)
-                is ConvertResult.Failed -> ConversionHub.State.Failed(run, outcome.message)
-                null -> ConversionHub.State.Cancelled(run)
+            when {
+                saved != null -> ConversionHub.State.Saved(run, saved.uri, saved.name)
+                outcome is ConvertResult.Done -> ConversionHub.State.Done(run, outcome)
+                outcome is ConvertResult.Failed -> ConversionHub.State.Failed(run, outcome.message)
+                else -> ConversionHub.State.Cancelled(run)
             },
         )
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        // With the screen on display it hands the result over itself; otherwise the notification carries it.
-        if (!ConversionHub.visible && !ConversionHub.consumed) {
+        if (saved != null) {
+            Notifications.postSaved(this, saved.name, saved.uri)
+            ConversionHub.releaseHost()
+        } else if (!ConversionHub.visible && !ConversionHub.consumed) {
             when (outcome) {
-                is ConvertResult.Done -> Notifications.postDone(this, outcome.name)
+                is ConvertResult.Done -> {
+                    ResultStore.forget(this)
+                    Notifications.postDone(this, outcome.name)
+                }
                 is ConvertResult.Failed -> Notifications.postFailed(this, outcome.message)
                 null -> Unit
             }

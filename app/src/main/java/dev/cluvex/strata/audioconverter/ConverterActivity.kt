@@ -21,7 +21,7 @@ import androidx.activity.viewModels
  */
 class ConverterActivity : ComponentActivity() {
     private val vm: ConverterViewModel by viewModels()
-    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +35,13 @@ class ConverterActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        // Android 9 and older need this to save the finished file in Music/AudioConverter on its own.
+        if (Build.VERSION.SDK_INT < 29 &&
+            checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
         val name = intent.getStringExtra(EXTRA_FILE_NAME)?.takeIf { it.isNotBlank() } ?: uri.lastPathSegment ?: "audio"
         vm.start(uri, name)

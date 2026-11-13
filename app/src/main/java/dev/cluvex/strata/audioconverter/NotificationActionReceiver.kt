@@ -14,7 +14,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 (ConversionHub.state.value as? ConversionHub.State.Running)
                     ?.let { Notifications.notifyProgress(context, it.fileName, it.progress) }
             Notifications.ACTION_REPOST_DONE ->
-                if (!ConversionHub.consumed) Engine.latestResult(context)?.let { Notifications.postDone(context, it.name) }
+                if (!ConversionHub.consumed) {
+                    val saved = ResultStore.last(context)
+                    if (saved != null) Notifications.postSaved(context, saved.name, saved.uri)
+                    else Engine.latestResult(context)?.let { Notifications.postDone(context, it.name) }
+                }
         }
     }
 }

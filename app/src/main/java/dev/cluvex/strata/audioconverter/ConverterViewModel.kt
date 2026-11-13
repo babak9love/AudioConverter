@@ -41,6 +41,7 @@ class ConverterViewModel(app: Application) : AndroidViewModel(app) {
                     when (s) {
                         is ConversionHub.State.Running -> it.copy(converting = true, progress = s.progress, error = null)
                         is ConversionHub.State.Done -> it.copy(converting = false, progress = 1f, result = s.result)
+                        is ConversionHub.State.Saved -> it.copy(converting = false, progress = 1f)
                         is ConversionHub.State.Failed -> it.copy(converting = false, error = s.message)
                         is ConversionHub.State.Cancelled -> it.copy(converting = false)
                         ConversionHub.State.Idle -> it

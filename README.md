@@ -6,13 +6,15 @@ Options (same as the web tool): codec AAC / MP3 / Opus / FLAC; AAC, MP3 and Opus
 MP3 CBR / VBR / ABR; Opus application (VoIP / Audio) and VBR on/off (sample rate fixed at 48000 Hz);
 FLAC level 0-8 and 16/24-bit; channels Mono / Stereo / Input; sample-rate menus per codec
 (AAC/MP3: 44100, 48000, input; FLAC: 44100, 48000, 96000, 192000, custom). Video streams are dropped (`-vn`).
-The result is returned to Strata as `<name>_encoded.<ext>` with a Settings / Output report as the MESSAGE.
+The result is returned to Strata as `<name>_converted.<ext>` with a Settings / Output report as the MESSAGE.
 
 ## Background conversion
 The encoder runs in `ConversionService` (foreground service), not in the screen. Home or Back while converting only hides the
 screen (it keeps waiting for Strata); the notification shows progress with a Cancel button and comes back if swiped away.
-When it finishes in the background the notification stays (ongoing) until Open is tapped: that brings Strata forward, the
-screen hands the file over, and Strata offers to save it. If the screen was killed meanwhile, Open opens the file in Strata directly.
+When it finishes in the background the file is saved on its own in `Music/AudioConverter/` (MediaStore; a plain file with the
+storage permission on Android 9 and older) and the waiting screen closes, so Strata is free again. The notification stays
+(ongoing) until Open is tapped, which opens the saved file in Strata. If saving fails, the result waits behind the notification
+and Open brings Strata forward so the screen hands it over. With the screen on display nothing changes: the result goes to Strata.
 
 ## Build
 1. FFmpegKit is fetched from Maven Central (`dev.ffmpegkit-maintained:ffmpeg-kit-audio:6.0.3`, arm64-v8a only); no AAR needed.
