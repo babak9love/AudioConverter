@@ -89,8 +89,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-// The look of AUDIO_VIDEO_TOOLS: dark navy panels, a rainbow that slowly pans through selected buttons,
-// borders and the main button, soft pink glow.
+// Dark navy UI with a luminous purple gradient across selected controls, borders and main button.
 private val Bg = Color(0xFF0A0E14)
 private val BgTop = Color(0xFF0D1219)
 private val Panel = Color(0xFF12181F)
@@ -98,11 +97,12 @@ private val Raised = Color(0xFF171F28)
 private val Border = Color(0xFF212B36)
 private val TextMain = Color(0xFFE8EDF2)
 private val TextDim = Color(0xFF7C8A99)
-private val Accent = Color(0xFFFF6BD6)
+private val Accent = Color(0xFFB84DFF)
 private val Danger = Color(0xFFF76A6A)
-private val OnRainbow = Color(0xFF1A0713)
+private val OnRainbow = Color(0xFFFFFFFF)
 private val Rainbow = listOf(
-    Color(0xFFFF4D6D), Color(0xFFFFA836), Color(0xFFFFE45E), Color(0xFF4ADE80), Color(0xFF38BDF8), Color(0xFFA78BFA), Color(0xFFFF6BD6),
+    Color(0xFFE879FF), Color(0xFFB84DFF), Color(0xFF8B2CFF), Color(0xFF6200EA),
+    Color(0xFF9D4DFF), Color(0xFFD66BFF), Color(0xFFE879FF),
 )
 private val RainbowLoop = Rainbow + Rainbow.first()
 
@@ -116,7 +116,7 @@ fun ConverterTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, content = content)
 }
 
-/** 0..1, repeating: how far the rainbow has panned. Read inside draw blocks so panning never recomposes. */
+/** 0..1, repeating: how far the purple gradient has panned. Read inside draw blocks so panning never recomposes. */
 @Composable
 private fun rememberPan(durationMs: Int): State<Float> =
     rememberInfiniteTransition(label = "pan").animateFloat(
@@ -356,7 +356,7 @@ private fun Field(title: String, unit: String? = null, content: @Composable () -
     }
 }
 
-/** A segmented control: the selected button is filled with the panning rainbow and pops in, presses squash it. */
+/** A segmented control: the selected button is filled with the panning purple gradient and pops in, presses squash it. */
 @Composable
 private fun <T> Seg(items: List<T>, selected: T, enabled: Boolean, pan: State<Float>, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
     val shape = RoundedCornerShape(14.dp)
@@ -434,7 +434,7 @@ private fun NumberField(value: Int, hint: String, enabled: Boolean, onChange: (I
     )
 }
 
-/** The big rainbow button: the colours keep panning, a press squashes it. */
+/** The big purple-gradient button: the colours keep panning, a press squashes it. */
 @Composable
 private fun ConvertButton(pan: State<Float>, onClick: () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
