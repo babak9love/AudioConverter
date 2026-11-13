@@ -71,8 +71,10 @@ dependencies {
 
     // FFmpegKit, community-maintained continuation of arthenica/ffmpeg-kit (same com.arthenica.ffmpegkit API).
     // The "audio" build has libmp3lame, libopus and libvorbis; AAC and FLAC are FFmpeg's own encoders.
-    // Other lines: 7.1.6 and 8.1.7. smart-exception-java comes in transitively.
+    // Other lines: 7.1.6 and 8.1.7.
     implementation("dev.ffmpegkit-maintained:ffmpeg-kit-audio:6.0.3")
+    // FFmpegKit calls com.arthenica.smartexception at runtime, but this build does not pull it in by itself.
+    implementation("com.arthenica:smart-exception-java:0.2.1")
 
     testImplementation(libs.junit)
 }
