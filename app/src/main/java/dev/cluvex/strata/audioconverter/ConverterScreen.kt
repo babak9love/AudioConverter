@@ -208,11 +208,12 @@ fun ConverterScreen(vm: ConverterViewModel, onDone: (ConvertResult.Done) -> Unit
                     }
                 }
                 ui.error?.let { Text(it, color = Danger) }
-                if (ui.info != null) {
+                val info = ui.info
+                if (info != null) {
                     Options(ui.options, enabled = !ui.converting, pan = slow, change = vm::update)
                     // Only offered when the file really has a cover or tags to keep.
-                    if (ui.info.coverStream != null || ui.info.hasTags) {
-                        Appear(5) { KeepMetadataRow(ui.info, ui.options, !ui.converting, slow, vm::update) }
+                    if (info.coverStream != null || info.hasTags) {
+                        Appear(5) { KeepMetadataRow(info, ui.options, !ui.converting, slow, vm::update) }
                     }
                     Appear(6) {
                         if (ui.converting) Progress(ui.progress, fast, vm::cancel) else ConvertButton(fast, vm::convert)
