@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AudioConverter" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@android:color/white</item>
+    <style name="Theme.AudioConverter" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0A0E14</item>
+        <item name="android:statusBarColor">#0D1219</item>
+        <item name="android:navigationBarColor">#0A0E14</item>
     </style>
 </resources>

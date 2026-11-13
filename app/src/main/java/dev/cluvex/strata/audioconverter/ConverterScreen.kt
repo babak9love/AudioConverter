@@ -1,103 +1,210 @@
 package dev.cluvex.strata.audioconverter
 
-import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.inset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+
+// The look of AUDIO_VIDEO_TOOLS: dark navy panels, a rainbow that slowly pans through selected buttons,
+// borders and the main button, soft pink glow.
+private val Bg = Color(0xFF0A0E14)
+private val BgTop = Color(0xFF0D1219)
+private val Panel = Color(0xFF12181F)
+private val Raised = Color(0xFF171F28)
+private val Border = Color(0xFF212B36)
+private val TextMain = Color(0xFFE8EDF2)
+private val TextDim = Color(0xFF7C8A99)
+private val Accent = Color(0xFFFF6BD6)
+private val Danger = Color(0xFFF76A6A)
+private val OnRainbow = Color(0xFF1A0713)
+private val Rainbow = listOf(
+    Color(0xFFFF4D6D), Color(0xFFFFA836), Color(0xFFFFE45E), Color(0xFF4ADE80), Color(0xFF38BDF8), Color(0xFFA78BFA), Color(0xFFFF6BD6),
+)
+private val RainbowLoop = Rainbow + Rainbow.first()
 
 @Composable
 fun ConverterTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val context = LocalContext.current
-    val scheme = when {
-        Build.VERSION.SDK_INT >= 31 -> if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        dark -> darkColorScheme()
-        else -> lightColorScheme()
-    }
+    val scheme = darkColorScheme(
+        primary = Accent, onPrimary = OnRainbow, background = Bg, onBackground = TextMain,
+        surface = Panel, onSurface = TextMain, surfaceVariant = Raised, onSurfaceVariant = TextDim,
+        outline = Border, error = Danger,
+    )
     MaterialTheme(colorScheme = scheme, content = content)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** 0..1, repeating: how far the rainbow has panned. Read inside draw blocks so panning never recomposes. */
+@Composable
+private fun rememberPan(durationMs: Int): State<Float> =
+    rememberInfiniteTransition(label = "pan").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(durationMs, easing = LinearEasing)),
+        label = "pan",
+    )
+
+private fun rainbowBrush(width: Float, pan: Float): Brush {
+    val period = width * 2f
+    val start = (pan % 1f) * period
+    return Brush.linearGradient(RainbowLoop, start = Offset(start, 0f), end = Offset(start + period, 0f), tileMode = TileMode.Repeated)
+}
+
+private fun Modifier.rainbowFill(pan: State<Float>, shape: Shape, phase: Float = 0f, alpha: () -> Float = { 1f }): Modifier = drawBehind {
+    val a = alpha()
+    if (size.width <= 0f || a <= 0f) return@drawBehind
+    drawOutline(shape.createOutline(size, layoutDirection, this), rainbowBrush(size.width, pan.value + phase), alpha = a)
+}
+
+private fun Modifier.rainbowBorder(pan: State<Float>, shape: Shape, width: Float): Modifier = drawBehind {
+    if (size.width <= 0f) return@drawBehind
+    val w = width * density
+    inset(w / 2f) {
+        drawOutline(shape.createOutline(this.size, layoutDirection, this), rainbowBrush(this.size.width, pan.value), style = Stroke(width = w))
+    }
+}
+
+@Composable
+private fun Appear(index: Int, content: @Composable () -> Unit) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(index * 70L)
+        shown = true
+    }
+    AnimatedVisibility(
+        visible = shown,
+        enter = fadeIn(tween(380)) + slideInVertically(tween(380)) { it / 5 },
+    ) { content() }
+}
+
 @Composable
 fun ConverterScreen(vm: ConverterViewModel, onDone: (ConvertResult.Done) -> Unit, onClose: () -> Unit) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     BackHandler { if (ui.converting) vm.cancel() else onClose() }
     LaunchedEffect(ui.result) { ui.result?.let(onDone) }
+    val slow = rememberPan(8000)
+    val fast = rememberPan(5000)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.title_convert)) },
-                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.close)) } },
+    Column(
+        Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(BgTop, Bg))).systemBarsPadding().imePadding(),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { if (ui.converting) vm.cancel() else onClose() }) {
+                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.close), tint = TextMain)
+            }
+            Text(
+                stringResource(R.string.title_convert),
+                style = TextStyle(brush = Brush.horizontalGradient(RainbowLoop), fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
             )
-        },
-    ) { padding ->
+        }
+
         Column(
-            Modifier.padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            FileCard(ui)
-            if (ui.loading) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
-                    Text(stringResource(R.string.reading))
+            val card = RoundedCornerShape(22.dp)
+            Column(
+                Modifier.fillMaxWidth()
+                    .shadow(18.dp, card, ambientColor = Accent.copy(alpha = 0.35f), spotColor = Accent.copy(alpha = 0.35f))
+                    .background(Panel, card)
+                    .rainbowBorder(slow, card, 1.5f)
+                    .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                Appear(0) { FileCard(ui) }
+                if (ui.loading) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(Modifier.size(24.dp), color = Accent, strokeWidth = 3.dp)
+                        Text(stringResource(R.string.reading), color = TextDim)
+                    }
                 }
-            }
-            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (ui.info != null) {
-                Options(ui.options, enabled = !ui.converting, change = vm::update)
-                if (ui.converting) {
-                    LinearProgressIndicator(progress = { ui.progress }, modifier = Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.converting, (ui.progress * 100).roundToInt()), style = MaterialTheme.typography.labelLarge)
-                    OutlinedButton(onClick = vm::cancel, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cancel)) }
-                } else {
-                    Button(onClick = vm::convert, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.convert_button)) }
+                ui.error?.let { Text(it, color = Danger) }
+                if (ui.info != null) {
+                    Options(ui.options, enabled = !ui.converting, pan = slow, change = vm::update)
+                    Appear(5) {
+                        if (ui.converting) Progress(ui.progress, fast, vm::cancel) else ConvertButton(fast, vm::convert)
+                    }
                 }
             }
         }
@@ -106,10 +213,17 @@ fun ConverterScreen(vm: ConverterViewModel, onDone: (ConvertResult.Done) -> Unit
 
 @Composable
 private fun FileCard(ui: ConverterUi) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(ui.fileName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            val info = ui.info ?: return@Column
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            ui.fileName,
+            style = TextStyle(brush = Brush.horizontalGradient(RainbowLoop), fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        val info = ui.info ?: return@Column
+        val shape = RoundedCornerShape(16.dp)
+        Column(Modifier.fillMaxWidth().background(Raised, shape).border(1.dp, Border, shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.info_audio), color = Accent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             fun line(label: Int, value: String?) = value?.takeIf { it.isNotEmpty() }?.let { label to it }
             listOfNotNull(
                 line(R.string.info_codec, info.codec),
@@ -120,45 +234,86 @@ private fun FileCard(ui: ConverterUi) {
                 line(R.string.info_duration, EncoderSettings.formatDuration(info.duration)),
                 line(R.string.info_size, EncoderSettings.formatSize(info.sizeBytes)),
             ).forEach { (label, value) ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(label), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                    Text(value, style = MaterialTheme.typography.bodyMedium)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(stringResource(label), color = TextDim, fontSize = 15.sp, modifier = Modifier.weight(0.42f))
+                    Text(value, color = TextMain, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.58f))
                 }
             }
-            if (info.hasVideo) Text(stringResource(R.string.video_dropped), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            if (info.hasVideo) Text(stringResource(R.string.video_dropped), color = Accent, fontSize = 13.sp)
         }
     }
 }
 
 /** The options of "Convert Audio/Video" in AUDIO_VIDEO_TOOLS, audio part only, in the same order. */
 @Composable
-private fun Options(o: EncoderOptions, enabled: Boolean, change: ((EncoderOptions) -> EncoderOptions) -> Unit) {
-    Field(stringResource(R.string.label_audio_codec)) {
-        Chips(AudioCodec.entries, o.codec, enabled, { it.label }) { c -> change { it.withCodec(c) } }
+private fun Options(o: EncoderOptions, enabled: Boolean, pan: State<Float>, change: ((EncoderOptions) -> EncoderOptions) -> Unit) {
+    Appear(1) {
+        Field(stringResource(R.string.label_audio_codec)) {
+            Seg(AudioCodec.entries, o.codec, enabled, pan, { it.label }) { c -> change { it.withCodec(c) } }
+        }
     }
-    when (o.codec) {
+    Appear(2) {
+        AnimatedContent(
+            targetState = o.codec,
+            transitionSpec = { (fadeIn(tween(260)) + expandVertically(tween(260))) togetherWith (fadeOut(tween(160)) + shrinkVertically(tween(260))) },
+            label = "codec-options",
+        ) { codec ->
+            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) { CodecOptions(codec, o, enabled, pan, change) }
+        }
+    }
+    Appear(3) {
+        Field(stringResource(R.string.label_channels)) {
+            Seg(ChannelMode.entries, o.channels, enabled, pan, {
+                when (it) {
+                    ChannelMode.MONO -> stringResource(R.string.mono)
+                    ChannelMode.STEREO -> stringResource(R.string.stereo)
+                    ChannelMode.ORIGINAL -> stringResource(R.string.input_file)
+                }
+            }) { c -> change { it.copy(channels = c) } }
+        }
+    }
+    Appear(4) {
+        Field(stringResource(R.string.label_sample_rate)) {
+            Seg(EncoderSettings.sampleRateChoices(o.codec), o.sampleRate, enabled, pan, {
+                when (it) {
+                    SampleRateChoice.ORIGINAL -> stringResource(R.string.sr_original)
+                    SampleRateChoice.CUSTOM -> stringResource(R.string.custom)
+                    else -> EncoderSettings.sampleRateLabel(it, o.codec)
+                }
+            }) { s -> change { it.copy(sampleRate = s) } }
+            if (o.codec == AudioCodec.OPUS) Text(stringResource(R.string.hint_opus_sr), color = TextDim, fontSize = 13.sp)
+            AnimatedVisibility(o.sampleRate == SampleRateChoice.CUSTOM && o.codec != AudioCodec.OPUS) {
+                NumberField(o.customSampleRate, stringResource(R.string.hint_hz, EncoderSettings.MIN_CUSTOM_SAMPLE_RATE), enabled) { v -> change { it.copy(customSampleRate = v) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CodecOptions(codec: AudioCodec, o: EncoderOptions, enabled: Boolean, pan: State<Float>, change: ((EncoderOptions) -> EncoderOptions) -> Unit) {
+    when (codec) {
         AudioCodec.AAC -> Field(stringResource(R.string.label_aac_bitrate), stringResource(R.string.unit_kbps)) {
-            BitrateField(EncoderSettings.AAC_BITRATES, o.aacBitrate, EncoderSettings.AAC_RANGE, enabled) { v -> change { it.copy(aacBitrate = v) } }
+            BitrateField(EncoderSettings.AAC_BITRATES, o.aacBitrate, EncoderSettings.AAC_RANGE, enabled, pan) { v -> change { it.copy(aacBitrate = v) } }
         }
         AudioCodec.MP3 -> {
             Field(stringResource(R.string.label_mp3_mode)) {
-                Chips(Mp3Mode.entries, o.mp3Mode, enabled, { it.name }) { m -> change { it.copy(mp3Mode = m) } }
+                Seg(Mp3Mode.entries, o.mp3Mode, enabled, pan, { it.name }) { m -> change { it.copy(mp3Mode = m) } }
             }
             Field(stringResource(R.string.label_mp3_bitrate), stringResource(R.string.unit_kbps)) {
-                BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled) { v -> change { it.copy(mp3Bitrate = v) } }
+                BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled, pan) { v -> change { it.copy(mp3Bitrate = v) } }
             }
         }
         AudioCodec.OPUS -> {
             Field(stringResource(R.string.label_opus_app)) {
-                Chips(OpusApplication.entries, o.opusApplication, enabled, {
+                Seg(OpusApplication.entries, o.opusApplication, enabled, pan, {
                     if (it == OpusApplication.VOIP) stringResource(R.string.opus_voip) else stringResource(R.string.opus_audio)
                 }) { a -> change { it.copy(opusApplication = a) } }
             }
             Field(stringResource(R.string.label_opus_vbr)) {
-                Chips(listOf(true, false), o.opusVbr, enabled, { if (it) stringResource(R.string.on) else stringResource(R.string.off) }) { v -> change { it.copy(opusVbr = v) } }
+                Seg(listOf(true, false), o.opusVbr, enabled, pan, { if (it) stringResource(R.string.on) else stringResource(R.string.off) }) { v -> change { it.copy(opusVbr = v) } }
             }
             Field(stringResource(R.string.label_opus_bitrate), stringResource(R.string.unit_kbps)) {
-                BitrateField(EncoderSettings.OPUS_BITRATES, o.opusBitrate, EncoderSettings.OPUS_RANGE, enabled) { v -> change { it.copy(opusBitrate = v) } }
+                BitrateField(EncoderSettings.OPUS_BITRATES, o.opusBitrate, EncoderSettings.OPUS_RANGE, enabled, pan) { v -> change { it.copy(opusBitrate = v) } }
             }
         }
         AudioCodec.FLAC -> {
@@ -170,74 +325,86 @@ private fun Options(o: EncoderOptions, enabled: Boolean, change: ((EncoderOption
                         valueRange = 0f..8f,
                         steps = 7,
                         enabled = enabled,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFFFE45E), activeTrackColor = Color(0xFFFFA836), inactiveTrackColor = Raised,
+                            activeTickColor = OnRainbow, inactiveTickColor = Border,
+                        ),
                         modifier = Modifier.weight(1f),
                     )
-                    Text(o.flacLevel.toString(), style = MaterialTheme.typography.titleMedium)
+                    AnimatedContent(o.flacLevel, transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) }, label = "flac-level") { n ->
+                        Text(n.toString(), color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             Field(stringResource(R.string.label_flac_depth)) {
-                Chips(listOf(16, 24), o.flacDepth, enabled, { "$it-bit" }) { d -> change { it.copy(flacDepth = d) } }
+                Seg(listOf(16, 24), o.flacDepth, enabled, pan, { "$it-bit" }) { d -> change { it.copy(flacDepth = d) } }
             }
-        }
-    }
-    Field(stringResource(R.string.label_channels)) {
-        Chips(ChannelMode.entries, o.channels, enabled, {
-            when (it) {
-                ChannelMode.MONO -> stringResource(R.string.mono)
-                ChannelMode.STEREO -> stringResource(R.string.stereo)
-                ChannelMode.ORIGINAL -> stringResource(R.string.input_file)
-            }
-        }) { c -> change { it.copy(channels = c) } }
-    }
-    Field(stringResource(R.string.label_sample_rate)) {
-        Chips(EncoderSettings.sampleRateChoices(o.codec), o.sampleRate, enabled, {
-            when (it) {
-                SampleRateChoice.ORIGINAL -> stringResource(R.string.sr_original)
-                SampleRateChoice.CUSTOM -> stringResource(R.string.custom)
-                else -> EncoderSettings.sampleRateLabel(it, o.codec)
-            }
-        }) { s -> change { it.copy(sampleRate = s) } }
-        if (o.codec == AudioCodec.OPUS) {
-            Text(stringResource(R.string.hint_opus_sr), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (o.sampleRate == SampleRateChoice.CUSTOM && o.codec != AudioCodec.OPUS) {
-            NumberField(o.customSampleRate, stringResource(R.string.hint_hz, EncoderSettings.MIN_CUSTOM_SAMPLE_RATE), enabled) { v -> change { it.copy(customSampleRate = v) } }
         }
     }
 }
 
 @Composable
 private fun Field(title: String, unit: String? = null, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            if (unit != null) Text(unit, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            if (unit != null) Text(unit, color = TextDim, fontSize = 13.sp)
         }
         content()
     }
 }
 
+/** A segmented control: the selected button is filled with the panning rainbow and pops in, presses squash it. */
 @Composable
-private fun <T> Chips(items: List<T>, selected: T, enabled: Boolean, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.forEach { item ->
-            FilterChip(selected = item == selected, onClick = { onSelect(item) }, enabled = enabled, label = { Text(label(item)) })
-        }
+private fun <T> Seg(items: List<T>, selected: T, enabled: Boolean, pan: State<Float>, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    FlowRow(
+        Modifier.clip(shape).background(Raised).border(1.dp, Border, shape).padding(4.dp).alpha(if (enabled) 1f else 0.55f),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        items.forEachIndexed { i, item -> SegButton(label(item), item == selected, enabled, pan, phase = i * 0.19f) { onSelect(item) } }
+    }
+}
+
+@Composable
+private fun SegButton(text: String, selected: Boolean, enabled: Boolean, pan: State<Float>, phase: Float, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(11.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val on by animateFloatAsState(if (selected) 1f else 0f, tween(260), label = "seg-on")
+    val press by animateFloatAsState(if (pressed) 0.93f else 1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "seg-press")
+    val ink by animateColorAsState(if (selected) OnRainbow else TextDim, tween(220), label = "seg-ink")
+    Box(
+        Modifier
+            .defaultMinSize(minWidth = 66.dp)
+            .height(46.dp)
+            .graphicsLayer { scaleX = press * (1f + 0.03f * on); scaleY = press * (1f + 0.03f * on) }
+            .clip(shape)
+            .rainbowFill(pan, shape, phase) { on }
+            .clickable(interaction, indication = null, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = ink, fontSize = 16.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
     }
 }
 
 /** Preset bitrates plus "Custom" with a number box limited to the range of the web tool. */
 @Composable
-private fun BitrateField(presets: List<Int>, value: Int, range: IntRange, enabled: Boolean, onChange: (Int) -> Unit) {
+private fun BitrateField(presets: List<Int>, value: Int, range: IntRange, enabled: Boolean, pan: State<Float>, onChange: (Int) -> Unit) {
     var custom by remember { mutableStateOf(value !in presets) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            presets.forEach { p ->
-                FilterChip(selected = !custom && value == p, onClick = { custom = false; onChange(p) }, enabled = enabled, label = { Text("$p") })
-            }
-            FilterChip(selected = custom, onClick = { custom = true }, enabled = enabled, label = { Text(stringResource(R.string.custom)) })
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        val shape = RoundedCornerShape(14.dp)
+        FlowRow(
+            Modifier.clip(shape).background(Raised).border(1.dp, Border, shape).padding(4.dp).alpha(if (enabled) 1f else 0.55f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            presets.forEachIndexed { i, p -> SegButton("$p", !custom && value == p, enabled, pan, i * 0.19f) { custom = false; onChange(p) } }
+            SegButton(stringResource(R.string.custom), custom, enabled, pan, presets.size * 0.19f) { custom = true }
         }
-        if (custom) NumberField(value, stringResource(R.string.hint_range, range.first, range.last), enabled, onChange)
+        AnimatedVisibility(custom) { NumberField(value, stringResource(R.string.hint_range, range.first, range.last), enabled, onChange) }
     }
 }
 
@@ -253,8 +420,54 @@ private fun NumberField(value: Int, hint: String, enabled: Boolean, onChange: (I
         },
         enabled = enabled,
         singleLine = true,
-        supportingText = { Text(hint) },
+        shape = RoundedCornerShape(12.dp),
+        supportingText = { Text(hint, color = TextDim) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Accent, unfocusedBorderColor = Border, cursorColor = Accent,
+            focusedContainerColor = Raised, unfocusedContainerColor = Raised,
+            focusedTextColor = TextMain, unfocusedTextColor = TextMain,
+        ),
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+/** The big rainbow button: the colours keep panning, a press squashes it. */
+@Composable
+private fun ConvertButton(pan: State<Float>, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "convert-press")
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .shadow(14.dp, shape, ambientColor = Accent.copy(alpha = 0.5f), spotColor = Accent.copy(alpha = 0.5f))
+            .clip(shape)
+            .rainbowFill(pan, shape)
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(stringResource(R.string.convert_button), color = OnRainbow, fontSize = 19.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
+    }
+}
+
+@Composable
+private fun Progress(progress: Float, pan: State<Float>, onCancel: () -> Unit) {
+    val p by animateFloatAsState(progress, tween(300, easing = LinearEasing), label = "progress")
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.converting, (p * 100).roundToInt()), color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Box(Modifier.fillMaxWidth().height(14.dp).clip(CircleShape).background(Raised).border(1.dp, Border, CircleShape)) {
+            Box(Modifier.fillMaxHeight().fillMaxWidth(p.coerceIn(0.03f, 1f)).rainbowFill(pan, CircleShape))
+        }
+        val shape = RoundedCornerShape(14.dp)
+        Box(
+            Modifier.fillMaxWidth().height(50.dp).clip(shape).border(1.5.dp, Danger.copy(alpha = 0.8f), shape).clickable(role = Role.Button, onClick = onCancel),
+            contentAlignment = Alignment.Center,
+        ) { Text(stringResource(R.string.cancel), color = Danger, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
+    }
 }

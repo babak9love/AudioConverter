@@ -6,6 +6,7 @@
     <string name="close">بستن</string>
     <string name="reading">در حال خواندن فایل…</string>
     <string name="video_dropped">این فایل ویدئو هم دارد؛ فقط صدایش تبدیل می‌شود.</string>
+    <string name="info_audio">صدا</string>
     <string name="info_codec">کدک</string>
     <string name="info_sample_rate">نرخ نمونه</string>
     <string name="info_channels">کانال‌ها</string>
