@@ -32,9 +32,10 @@ class ConversionService : Service() {
         Notifications.ensureChannels(this)
         val taken = ConversionHub.takeRequest()
         // startForegroundService() obliges us to call startForeground(), even if there turns out to be nothing to do.
-        startInForeground(Notifications.progress(this, taken?.second?.fileName.orEmpty(), 0f))
-        if (taken == null) {
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        val failure = startInForeground(Notifications.progress(this, taken?.second?.fileName.orEmpty(), 0f))
+        if (failure != null || taken == null) {
+            // Never leave the service half started: Android would kill the app if startForeground() did not succeed.
+            if (taken != null) ConversionHub.finish(ConversionHub.State.Failed(taken.first, failure ?: "Encoding failed."))
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -60,13 +61,14 @@ class ConversionService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startInForeground(n: Notification) {
-        val type = when {
-            Build.VERSION.SDK_INT >= 35 -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
-            Build.VERSION.SDK_INT >= 29 -> ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            else -> 0
-        }
-        ServiceCompat.startForeground(this, Notifications.PROGRESS_ID, n, type)
+    /** Returns null on success, or the reason it failed. */
+    private fun startInForeground(n: Notification): String? = try {
+        // dataSync exists on every version that has types at all and is declared in the manifest.
+        if (Build.VERSION.SDK_INT >= 29) startForeground(Notifications.PROGRESS_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        else startForeground(Notifications.PROGRESS_ID, n)
+        null
+    } catch (t: Throwable) {
+        "Could not start the conversion service: ${t.message ?: t.javaClass.simpleName}"
     }
 
     private fun onProgress(run: Long, name: String, p: Float) {
