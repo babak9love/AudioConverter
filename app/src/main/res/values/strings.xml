@@ -47,4 +47,9 @@
     <string name="keep_meta_tags">Tags (title, artist, album…) found in this file</string>
     <string name="keep_meta_opus">Opus can\'t store cover art; tags are kept</string>
     <string name="keep_meta_opus_cover_only">Opus can\'t store cover art</string>
+    <string name="label_mp3_quality">MP3 quality</string>
+    <string name="label_mp3_avg_bitrate">MP3 average bitrate</string>
+    <string name="mp3_quality_hint">Lower number = higher quality. The bitrate varies with the music, so the file size does too.</string>
+    <string name="mp3_quality_note">V%1$d · about %2$d kbps (%3$d–%4$d)</string>
+    <string name="mp3_abr_note">Averages %1$d kbps, varies between %2$d and %3$d kbps</string>
 </resources>

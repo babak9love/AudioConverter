@@ -38,6 +38,8 @@ data class EncoderOptions(
     val aacBitrate: Int = 192,
     val mp3Mode: Mp3Mode = Mp3Mode.CBR,
     val mp3Bitrate: Int = 192,
+    /** LAME -V scale for VBR: 0 is best, 9 smallest. */
+    val mp3VbrQuality: Int = 2,
     val opusApplication: OpusApplication = OpusApplication.VOIP,
     val opusVbr: Boolean = true,
     val opusBitrate: Int = 128,
@@ -69,6 +71,7 @@ data class ResolvedSettings(
     val channelCount: Int?,
     val sampleRate: Int?,
     val metaMode: MetaMode = MetaMode.DEFAULT,
+    val vbrQuality: Int? = null,
     /** Stream index of the cover art that is carried over, null when it is dropped. */
     val coverStream: Int? = null,
     val coverCodec: String? = null,
@@ -115,7 +118,18 @@ object EncoderSettings {
         SampleRateChoice.CUSTOM -> "Custom"
     }
 
-    /** MP3 VBR quality (-q:a) for a target bitrate. */
+    /** What a LAME VBR level (-q:a) gives: typical average and range in kbps, from the LAME documentation. */
+    data class VbrLevel(val average: Int, val min: Int, val max: Int)
+
+    val VBR_LEVELS = listOf(
+        VbrLevel(245, 220, 260), VbrLevel(225, 190, 250), VbrLevel(190, 170, 210), VbrLevel(175, 150, 195), VbrLevel(165, 140, 185),
+        VbrLevel(130, 120, 150), VbrLevel(115, 100, 130), VbrLevel(100, 80, 120), VbrLevel(85, 70, 105), VbrLevel(65, 45, 85),
+    )
+
+    /** ABR keeps the average near the target and lets the rate move between half and double of it (an MP3 tops out at 320). */
+    fun abrRange(target: Int): IntRange = (target / 2).coerceAtLeast(32)..(target * 2).coerceAtMost(320)
+
+    /** MP3 VBR quality (-q:a) for a target bitrate (the old bitrate-style buttons of the web tool). */
     fun bitrateToVbrQuality(bitrate: Int): Int = when {
         bitrate >= 320 -> 0
         bitrate >= 256 -> 1
@@ -132,7 +146,8 @@ object EncoderSettings {
         val codec = options.codec
         val bitrate = when (codec) {
             AudioCodec.AAC -> options.aacBitrate.coerceIn(AAC_RANGE)
-            AudioCodec.MP3 -> options.mp3Bitrate.coerceIn(MP3_RANGE)
+            // VBR has no bitrate, only a quality level.
+            AudioCodec.MP3 -> if (options.mp3Mode == Mp3Mode.VBR) null else options.mp3Bitrate.coerceIn(MP3_RANGE)
             AudioCodec.OPUS -> options.opusBitrate.coerceIn(OPUS_RANGE)
             AudioCodec.FLAC -> null
         }
@@ -156,6 +171,7 @@ object EncoderSettings {
                 ChannelMode.ORIGINAL -> null
             },
             sampleRate = sampleRate,
+            vbrQuality = options.mp3VbrQuality.coerceIn(0, 9).takeIf { codec == AudioCodec.MP3 && options.mp3Mode == Mp3Mode.VBR },
             // Nothing to keep or strip when the source has no cover or tags: leave ffmpeg's defaults alone.
             metaMode = when {
                 !source.any -> MetaMode.DEFAULT
@@ -175,11 +191,11 @@ object EncoderSettings {
         when (s.codec) {
             AudioCodec.MP3 -> {
                 when (s.mp3Mode) {
-                    Mp3Mode.VBR -> out += listOf("-q:a", bitrateToVbrQuality(b).toString(), "-abr", "0")
+                    Mp3Mode.VBR -> out += listOf("-q:a", (s.vbrQuality ?: 2).toString(), "-abr", "0")
                     Mp3Mode.ABR -> out += listOf("-b:a", "${b}k", "-abr", "1", "-minrate", "${b / 2}k", "-maxrate", "${b * 2}k", "-bufsize", "${b * 2}k")
                     else -> out += listOf("-b:a", "${b}k", "-minrate", "${b}k", "-maxrate", "${b}k", "-bufsize", "${b * 2}k", "-abr", "0")
                 }
-                if (b >= 320) out += listOf("-joint_stereo", "0")
+                if (b >= 320 || (s.mp3Mode == Mp3Mode.VBR && s.vbrQuality == 0)) out += listOf("-joint_stereo", "0")
             }
             AudioCodec.OPUS -> out += listOf("-b:a", "${b}k", "-application", s.opusApplication ?: "voip", "-vbr", s.opusVbr ?: "on", "-ar", "48000")
             AudioCodec.FLAC -> out += listOf("-compression_level", (s.flacLevel ?: 5).toString(), "-sample_fmt", if ((s.flacDepth ?: 16) == 16) "s16" else "s32")

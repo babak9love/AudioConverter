@@ -312,8 +312,24 @@ private fun CodecOptions(codec: AudioCodec, o: EncoderOptions, enabled: Boolean,
             Field(stringResource(R.string.label_mp3_mode)) {
                 Seg(Mp3Mode.entries, o.mp3Mode, enabled, pan, { it.name }) { m -> change { it.copy(mp3Mode = m) } }
             }
-            Field(stringResource(R.string.label_mp3_bitrate), stringResource(R.string.unit_kbps)) {
-                BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled, pan) { v -> change { it.copy(mp3Bitrate = v) } }
+            // Each mode gets the control that matches what it really does: a fixed rate, an average, or a quality level.
+            when (o.mp3Mode) {
+                Mp3Mode.CBR -> Field(stringResource(R.string.label_mp3_bitrate), stringResource(R.string.unit_kbps)) {
+                    BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled, pan) { v -> change { it.copy(mp3Bitrate = v) } }
+                }
+                Mp3Mode.ABR -> Field(stringResource(R.string.label_mp3_avg_bitrate), stringResource(R.string.unit_kbps)) {
+                    BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled, pan) { v -> change { it.copy(mp3Bitrate = v) } }
+                    val range = EncoderSettings.abrRange(o.mp3Bitrate.coerceIn(EncoderSettings.MP3_RANGE))
+                    Text(stringResource(R.string.mp3_abr_note, o.mp3Bitrate.coerceIn(EncoderSettings.MP3_RANGE), range.first, range.last), color = TextDim, fontSize = 13.sp)
+                }
+                Mp3Mode.VBR -> Field(stringResource(R.string.label_mp3_quality)) {
+                    Seg((0..9).toList(), o.mp3VbrQuality, enabled, pan, { "V$it" }) { q -> change { it.copy(mp3VbrQuality = q) } }
+                    AnimatedContent(o.mp3VbrQuality, transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(100)) }, label = "vbr-note") { q ->
+                        val l = EncoderSettings.VBR_LEVELS[q.coerceIn(0, 9)]
+                        Text(stringResource(R.string.mp3_quality_note, q, l.average, l.min, l.max), color = TextMain, fontSize = 14.sp)
+                    }
+                    Text(stringResource(R.string.mp3_quality_hint), color = TextDim, fontSize = 13.sp)
+                }
             }
         }
         AudioCodec.OPUS -> {

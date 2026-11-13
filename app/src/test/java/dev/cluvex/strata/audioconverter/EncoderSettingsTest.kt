@@ -20,8 +20,21 @@ class EncoderSettingsTest {
 
     @Test fun mp3Vbr320() = assertEquals(
         listOf("-c:a", "libmp3lame", "-q:a", "0", "-abr", "0", "-joint_stereo", "0", "-ar", "44100", "-ac", "1"),
-        args(EncoderOptions(codec = AudioCodec.MP3, mp3Mode = Mp3Mode.VBR, mp3Bitrate = 320, channels = ChannelMode.MONO)),
+        args(EncoderOptions(codec = AudioCodec.MP3, mp3Mode = Mp3Mode.VBR, mp3VbrQuality = 0, channels = ChannelMode.MONO)),
     )
+
+    @Test fun mp3VbrQuality4HasNoJointStereoFlag() = assertEquals(
+        listOf("-c:a", "libmp3lame", "-q:a", "4", "-abr", "0", "-ar", "44100"),
+        args(EncoderOptions(codec = AudioCodec.MP3, mp3Mode = Mp3Mode.VBR, mp3VbrQuality = 4)),
+    )
+
+    @Test fun abrRangeIsHalfToDoubleCappedAtMp3Limits() {
+        assertEquals(64..256, EncoderSettings.abrRange(128))
+        assertEquals(96..320, EncoderSettings.abrRange(192))
+        assertEquals(32..64, EncoderSettings.abrRange(32))
+    }
+
+    @Test fun vbrLevelsCoverV0ToV9() = assertEquals(10, EncoderSettings.VBR_LEVELS.size)
 
     @Test fun mp3Abr() = assertEquals(
         listOf("-c:a", "libmp3lame", "-b:a", "128k", "-abr", "1", "-minrate", "64k", "-maxrate", "256k", "-bufsize", "256k", "-ar", "44100"),

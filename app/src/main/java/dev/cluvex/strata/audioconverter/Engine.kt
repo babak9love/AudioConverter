@@ -141,7 +141,7 @@ object Engine {
         row("Format", fileName.substringAfterLast('.').uppercase(Locale.ROOT))
         row("Audio Codec", s.codec.label)
         if (s.bitrate != null) row("Audio Bitrate", "${s.bitrate} kbps")
-        if (s.codec == AudioCodec.MP3 && s.mp3Mode != null) row("MP3 Mode", s.mp3Mode.name)
+        if (s.codec == AudioCodec.MP3 && s.mp3Mode != null) row("MP3 Mode", if (s.vbrQuality != null) "VBR (V${s.vbrQuality})" else s.mp3Mode.name)
         if (s.codec == AudioCodec.FLAC) {
             row("FLAC Level", "${s.flacLevel}")
             s.flacDepth?.let { row("Bit Depth", "$it-bit") }
