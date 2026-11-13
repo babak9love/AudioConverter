@@ -100,10 +100,11 @@ private val TextDim = Color(0xFF9A91A8)
 private val Accent = Color(0xFFB44CFF)
 private val Silver = Color(0xFFE8EAF2)
 private val Danger = Color(0xFFF76A6A)
-private val OnRainbow = Color(0xFFFFFFFF)
+// Dark text on the gradient: white would vanish on the silver stops (contrast 1.2:1); this is 4.4:1 or better everywhere.
+private val OnRainbow = Color(0xFF14081F)
 private val Rainbow = listOf(
-    Color(0xFF6500D8), Color(0xFF9D35FF), Color(0xFFD9B8FF), Color(0xFFE8EAF2),
-    Color(0xFFB879FF), Color(0xFF6500D8),
+    Color(0xFF9350F5), Color(0xFFA566FF), Color(0xFFC79BFF), Color(0xFFE8EAF2),
+    Color(0xFFB879FF), Color(0xFF9350F5),
 )
 private val RainbowLoop = Rainbow + Rainbow.first()
 
