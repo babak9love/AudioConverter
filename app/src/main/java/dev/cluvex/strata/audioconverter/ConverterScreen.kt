@@ -90,14 +90,14 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 // Premium dark UI with a luminous purple and silver gradient across selected controls and borders.
-private val Bg = Color(0xFF0A0E14)
-private val BgTop = Color(0xFF0D1219)
-private val Panel = Color(0xFF12181F)
-private val Raised = Color(0xFF171F28)
-private val Border = Color(0xFF212B36)
+private val Bg = Color(0xFF080611)
+private val BgTop = Color(0xFF10091B)
+private val Panel = Color(0xFF130F1D)
+private val Raised = Color(0xFF1B1526)
+private val Border = Color(0xFF342443)
 private val TextMain = Color(0xFFE8EDF2)
-private val TextDim = Color(0xFF7C8A99)
-private val Accent = Color(0xFFC45BFF)
+private val TextDim = Color(0xFF9A91A8)
+private val Accent = Color(0xFFB44CFF)
 private val Silver = Color(0xFFE8EAF2)
 private val Danger = Color(0xFFF76A6A)
 private val OnRainbow = Color(0xFFFFFFFF)
