@@ -7,6 +7,7 @@
     <string name="reading">Reading the file…</string>
     <string name="video_dropped">This file has a video stream; only its audio is converted.</string>
     <string name="info_audio">Audio</string>
+    <string name="info_name">Name</string>
     <string name="info_codec">Codec</string>
     <string name="info_sample_rate">Sample rate</string>
     <string name="info_channels">Channels</string>

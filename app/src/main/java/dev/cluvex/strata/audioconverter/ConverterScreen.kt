@@ -225,34 +225,37 @@ fun ConverterScreen(vm: ConverterViewModel, onDone: (ConvertResult.Done) -> Unit
 
 @Composable
 private fun FileCard(ui: ConverterUi) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val info = ui.info
+    if (info == null) {
+        // Until the file is read there is no card yet: show which file this is.
         Text(
             ui.fileName,
             style = MaterialTheme.typography.titleMedium.copy(brush = Brush.horizontalGradient(RainbowLoop), fontWeight = FontWeight.SemiBold),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        val info = ui.info ?: return@Column
-        val shape = RoundedCornerShape(16.dp)
-        Column(Modifier.fillMaxWidth().background(Raised, shape).border(1.dp, Border, shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.info_audio), color = Accent, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            fun line(label: Int, value: String?) = value?.takeIf { it.isNotEmpty() }?.let { label to it }
-            listOfNotNull(
-                line(R.string.info_codec, info.codec),
-                line(R.string.info_sample_rate, info.sampleRate?.let { "$it Hz" }),
-                line(R.string.info_channels, info.channels?.let { c -> listOfNotNull(c.toString(), info.channelLayout?.takeIf { it.isNotEmpty() }?.let { "($it)" }).joinToString(" ") }),
-                line(R.string.info_bitrate, info.audioBitrateKbps?.let { "$it kbps" }),
-                line(R.string.info_bit_depth, info.bitDepth?.let { "$it-bit" }),
-                line(R.string.info_duration, EncoderSettings.formatDuration(info.duration)),
-                line(R.string.info_size, EncoderSettings.formatSize(info.sizeBytes)),
-            ).forEach { (label, value) ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(label), color = TextDim, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.42f))
-                    Text(value, color = TextMain, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.58f))
-                }
+        return
+    }
+    val shape = RoundedCornerShape(16.dp)
+    Column(Modifier.fillMaxWidth().background(Raised, shape).border(1.dp, Border, shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.info_audio), color = Accent, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        fun line(label: Int, value: String?) = value?.takeIf { it.isNotEmpty() }?.let { label to it }
+        listOfNotNull(
+            line(R.string.info_name, ui.fileName),
+            line(R.string.info_codec, info.codec),
+            line(R.string.info_sample_rate, info.sampleRate?.let { "$it Hz" }),
+            line(R.string.info_channels, info.channels?.let { c -> listOfNotNull(c.toString(), info.channelLayout?.takeIf { it.isNotEmpty() }?.let { "($it)" }).joinToString(" ") }),
+            line(R.string.info_bitrate, info.audioBitrateKbps?.let { "$it kbps" }),
+            line(R.string.info_bit_depth, info.bitDepth?.let { "$it-bit" }),
+            line(R.string.info_duration, EncoderSettings.formatDuration(info.duration)),
+            line(R.string.info_size, EncoderSettings.formatSize(info.sizeBytes)),
+        ).forEach { (label, value) ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(label), color = TextDim, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.42f))
+                Text(value, color = TextMain, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.58f))
             }
-            if (info.hasVideo) Text(stringResource(R.string.video_dropped), color = Accent, style = MaterialTheme.typography.bodySmall)
         }
+        if (info.hasVideo) Text(stringResource(R.string.video_dropped), color = Accent, style = MaterialTheme.typography.bodySmall)
     }
 }
 
