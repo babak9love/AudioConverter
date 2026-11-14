@@ -56,4 +56,9 @@
     <string name="notif_failed_title">Conversion failed</string>
     <string name="notif_open">Open</string>
     <string name="notif_saved_text">%1$s was saved in Music/AudioConverter. Tap Open to see it.</string>
+    <string name="label_mp3_quality">MP3 quality</string>
+    <string name="label_mp3_avg_bitrate">MP3 average bitrate</string>
+    <string name="mp3_quality_hint">Lower number = higher quality. The bitrate varies with the music, so the file size does too.</string>
+    <string name="mp3_quality_note">V%1$d · about %2$d kbps (%3$d–%4$d)</string>
+    <string name="mp3_abr_note">Averages %1$d kbps, varies between %2$d and %3$d kbps</string>
 </resources>

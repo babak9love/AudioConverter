@@ -56,4 +56,9 @@
     <string name="notif_failed_title">تبدیل ناموفق بود</string>
     <string name="notif_open">باز کردن</string>
     <string name="notif_saved_text">%1$s در Music/AudioConverter ذخیره شد. برای دیدنش «باز کردن» را بزنید.</string>
+    <string name="label_mp3_quality">کیفیت MP3</string>
+    <string name="label_mp3_avg_bitrate">میانگین بیت‌ریت MP3</string>
+    <string name="mp3_quality_hint">عدد کمتر یعنی کیفیت بالاتر. بیت‌ریت با موسیقی تغییر می‌کند و حجم فایل هم همین‌طور.</string>
+    <string name="mp3_quality_note">V%1$d · حدود %2$d kbps (%3$d تا %4$d)</string>
+    <string name="mp3_abr_note">میانگین %1$d kbps، بین %2$d و %3$d kbps تغییر می‌کند</string>
 </resources>

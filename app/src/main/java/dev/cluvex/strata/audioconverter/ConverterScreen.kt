@@ -82,13 +82,11 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -183,7 +181,7 @@ fun ConverterScreen(vm: ConverterViewModel, onDone: (ConvertResult.Done) -> Unit
             }
             Text(
                 stringResource(R.string.title_convert),
-                style = TextStyle(brush = Brush.horizontalGradient(RainbowLoop), fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
+                style = MaterialTheme.typography.titleLarge.copy(brush = Brush.horizontalGradient(RainbowLoop), fontWeight = FontWeight.Bold),
             )
         }
 
@@ -230,14 +228,14 @@ private fun FileCard(ui: ConverterUi) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             ui.fileName,
-            style = TextStyle(brush = Brush.horizontalGradient(RainbowLoop), fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.titleMedium.copy(brush = Brush.horizontalGradient(RainbowLoop), fontWeight = FontWeight.SemiBold),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         val info = ui.info ?: return@Column
         val shape = RoundedCornerShape(16.dp)
         Column(Modifier.fillMaxWidth().background(Raised, shape).border(1.dp, Border, shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.info_audio), color = Accent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(stringResource(R.string.info_audio), color = Accent, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             fun line(label: Int, value: String?) = value?.takeIf { it.isNotEmpty() }?.let { label to it }
             listOfNotNull(
                 line(R.string.info_codec, info.codec),
@@ -249,11 +247,11 @@ private fun FileCard(ui: ConverterUi) {
                 line(R.string.info_size, EncoderSettings.formatSize(info.sizeBytes)),
             ).forEach { (label, value) ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(label), color = TextDim, fontSize = 15.sp, modifier = Modifier.weight(0.42f))
-                    Text(value, color = TextMain, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.58f))
+                    Text(stringResource(label), color = TextDim, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.42f))
+                    Text(value, color = TextMain, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.58f))
                 }
             }
-            if (info.hasVideo) Text(stringResource(R.string.video_dropped), color = Accent, fontSize = 13.sp)
+            if (info.hasVideo) Text(stringResource(R.string.video_dropped), color = Accent, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -295,7 +293,7 @@ private fun Options(o: EncoderOptions, enabled: Boolean, pan: State<Float>, chan
                     else -> EncoderSettings.sampleRateLabel(it, o.codec)
                 }
             }) { s -> change { it.copy(sampleRate = s) } }
-            if (o.codec == AudioCodec.OPUS) Text(stringResource(R.string.hint_opus_sr), color = TextDim, fontSize = 13.sp)
+            if (o.codec == AudioCodec.OPUS) Text(stringResource(R.string.hint_opus_sr), color = TextDim, style = MaterialTheme.typography.bodySmall)
             AnimatedVisibility(o.sampleRate == SampleRateChoice.CUSTOM && o.codec != AudioCodec.OPUS) {
                 NumberField(o.customSampleRate, stringResource(R.string.hint_hz, EncoderSettings.MIN_CUSTOM_SAMPLE_RATE), enabled) { v -> change { it.copy(customSampleRate = v) } }
             }
@@ -313,8 +311,24 @@ private fun CodecOptions(codec: AudioCodec, o: EncoderOptions, enabled: Boolean,
             Field(stringResource(R.string.label_mp3_mode)) {
                 Seg(Mp3Mode.entries, o.mp3Mode, enabled, pan, { it.name }) { m -> change { it.copy(mp3Mode = m) } }
             }
-            Field(stringResource(R.string.label_mp3_bitrate), stringResource(R.string.unit_kbps)) {
-                BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled, pan) { v -> change { it.copy(mp3Bitrate = v) } }
+            // Each mode gets the control that matches what it really does: a fixed rate, an average, or a quality level.
+            when (o.mp3Mode) {
+                Mp3Mode.CBR -> Field(stringResource(R.string.label_mp3_bitrate), stringResource(R.string.unit_kbps)) {
+                    BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled, pan) { v -> change { it.copy(mp3Bitrate = v) } }
+                }
+                Mp3Mode.ABR -> Field(stringResource(R.string.label_mp3_avg_bitrate), stringResource(R.string.unit_kbps)) {
+                    BitrateField(EncoderSettings.MP3_BITRATES, o.mp3Bitrate, EncoderSettings.MP3_RANGE, enabled, pan) { v -> change { it.copy(mp3Bitrate = v) } }
+                    val range = EncoderSettings.abrRange(o.mp3Bitrate.coerceIn(EncoderSettings.MP3_RANGE))
+                    Text(stringResource(R.string.mp3_abr_note, o.mp3Bitrate.coerceIn(EncoderSettings.MP3_RANGE), range.first, range.last), color = TextDim, style = MaterialTheme.typography.bodySmall)
+                }
+                Mp3Mode.VBR -> Field(stringResource(R.string.label_mp3_quality)) {
+                    Seg((0..9).toList(), o.mp3VbrQuality, enabled, pan, { "V$it" }) { q -> change { it.copy(mp3VbrQuality = q) } }
+                    AnimatedContent(o.mp3VbrQuality, transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(100)) }, label = "vbr-note") { q ->
+                        val l = EncoderSettings.VBR_LEVELS[q.coerceIn(0, 9)]
+                        Text(stringResource(R.string.mp3_quality_note, q, l.average, l.min, l.max), color = TextMain, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(stringResource(R.string.mp3_quality_hint), color = TextDim, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
         AudioCodec.OPUS -> {
@@ -346,7 +360,7 @@ private fun CodecOptions(codec: AudioCodec, o: EncoderOptions, enabled: Boolean,
                         modifier = Modifier.weight(1f),
                     )
                     AnimatedContent(o.flacLevel, transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) }, label = "flac-level") { n ->
-                        Text(n.toString(), color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(n.toString(), color = TextMain, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -361,8 +375,8 @@ private fun CodecOptions(codec: AudioCodec, o: EncoderOptions, enabled: Boolean,
 private fun Field(title: String, unit: String? = null, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(title, color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            if (unit != null) Text(unit, color = TextDim, fontSize = 13.sp)
+            Text(title, color = TextMain, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (unit != null) Text(unit, color = TextDim, style = MaterialTheme.typography.bodySmall)
         }
         content()
     }
@@ -400,7 +414,7 @@ private fun SegButton(text: String, selected: Boolean, enabled: Boolean, pan: St
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = ink, fontSize = 16.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+        Text(text, color = ink, style = MaterialTheme.typography.bodyLarge, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
     }
 }
 
@@ -473,8 +487,8 @@ private fun Toggle(title: String, subtitle: String, checked: Boolean, enabled: B
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = TextDim, fontSize = 13.sp)
+            Text(title, color = TextMain, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = TextDim, style = MaterialTheme.typography.bodySmall)
         }
         Box(
             Modifier.size(width = 56.dp, height = 32.dp).clip(CircleShape).background(Bg).border(1.dp, Border, CircleShape).rainbowFill(pan, CircleShape) { on },
@@ -509,7 +523,7 @@ private fun ConvertButton(pan: State<Float>, onClick: () -> Unit) {
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(stringResource(R.string.convert_button), color = OnRainbow, fontSize = 19.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
+        Text(stringResource(R.string.convert_button), color = OnRainbow, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -518,7 +532,7 @@ private fun Progress(progress: Float, pan: State<Float>, onCancel: () -> Unit) {
     val p by animateFloatAsState(progress, tween(300, easing = LinearEasing), label = "progress")
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.converting, (p * 100).roundToInt()), color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.converting, (p * 100).roundToInt()), color = TextMain, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         Box(Modifier.fillMaxWidth().height(14.dp).clip(CircleShape).background(Raised).border(1.dp, Border, CircleShape)) {
             Box(Modifier.fillMaxHeight().fillMaxWidth(p.coerceIn(0.03f, 1f)).rainbowFill(pan, CircleShape))
@@ -527,6 +541,6 @@ private fun Progress(progress: Float, pan: State<Float>, onCancel: () -> Unit) {
         Box(
             Modifier.fillMaxWidth().height(50.dp).clip(shape).border(1.5.dp, Danger.copy(alpha = 0.8f), shape).clickable(role = Role.Button, onClick = onCancel),
             contentAlignment = Alignment.Center,
-        ) { Text(stringResource(R.string.cancel), color = Danger, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
+        ) { Text(stringResource(R.string.cancel), color = Danger, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
     }
 }
